@@ -1,0 +1,26 @@
+services:
+  fickle:
+    image: artarts36/fickle:0.1.0
+    ports:
+      - 80:80
+      - 8001:8001
+    volumes:
+      - ./fickle.yaml:/app/fickle.yaml
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - fickle-net
+
+  helloworld:
+    image: golang:1.23.10-alpine
+    working_dir: /app
+    labels:
+      - 'fickle.service.name=helloworld'
+    volumes:
+      - ./:/app
+    command: go run main.go
+    networks:
+      - fickle-net
+
+networks:
+  fickle-net:
+    external: true

@@ -1,0 +1,18 @@
+log:
+  level: debug
+
+control:
+  address: :8001
+
+proxy:
+  helloworld.dc:
+    idle_timeout: 10s
+    retry_policy:
+      attempts: 3
+      backoff: 1s
+    to:
+      service_name: helloworld
+      address: helloworld:8000
+    metrics:
+      scrape:
+        address: helloworld:8000/metrics
