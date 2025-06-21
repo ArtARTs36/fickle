@@ -138,6 +138,24 @@ func (p *ContainerProxy) findContainer(ctx context.Context) (*container.Summary,
 	return nil, errors.New("container not found")
 }
 
+func (p *ContainerProxy) stopContainer(ctx context.Context) error {
+	cont, err := p.findContainer(ctx)
+	if err != nil {
+		return fmt.Errorf("find container: %w", err)
+	}
+
+	slog.InfoContext(ctx, "[container-proxy] stopping container", slog.String("container_id", cont.ID))
+
+	if p.config.Metrics.Scrape.Address != "" {
+		p.metricsScrapper.Scrape(p.config.Host, p.config.Metrics.Scrape.Address)
+	}
+
+	err = p.dockerClient.ContainerStop(ctx, cont.ID, container.StopOptions{})
+	p.metricsGroup.Containers.IncStops(p.config.Host, err == nil)
+
+	return nil
+}
+
 func (p *ContainerProxy) recycle() {
 	tick := time.NewTicker(5 * time.Second)
 
@@ -154,21 +172,7 @@ func (p *ContainerProxy) recycle() {
 
 		p.containerRan = false
 
-		slog.InfoContext(context.Background(), "[container-proxy] stopping container")
-
-		cont, err := p.findContainer(context.Background())
-		if err != nil {
-			return fmt.Errorf("find container: %w", err)
-		}
-
-		if p.config.Metrics.Scrape.Address != "" {
-			p.metricsScrapper.Scrape(p.config.Host, p.config.Metrics.Scrape.Address)
-		}
-
-		err = p.dockerClient.ContainerStop(context.Background(), cont.ID, container.StopOptions{})
-		p.metricsGroup.Containers.IncStops(p.config.Host, err == nil)
-
-		return err
+		return p.stopContainer(context.Background())
 	}
 
 	for t := range tick.C {

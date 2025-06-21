@@ -28,6 +28,18 @@ func NewServer(
 		s.containers[c.Host] = NewContainerProxy(c, dockerClient, metricsScrapper, metricsGroup)
 	}
 
+	metricsGroup.Containers.BindRunningCallback(func() float64 {
+		var count float64 = 0
+
+		for _, cont := range s.containers {
+			if cont.containerRan {
+				count++
+			}
+		}
+
+		return count
+	})
+
 	return s
 }
 

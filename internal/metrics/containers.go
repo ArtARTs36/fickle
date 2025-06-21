@@ -1,17 +1,24 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Containers struct {
-	runs  *prometheus.CounterVec
-	stops *prometheus.CounterVec
+	running *CallbackGauge
+	runs    *prometheus.CounterVec
+	stops   *prometheus.CounterVec
 }
 
 func NewContainers(namespace string) *Containers {
 	return &Containers{
+		running: NewCallbackGauge(prometheus.GaugeOpts{
+			Name:      "containers_running",
+			Namespace: namespace,
+			Help:      "Containers: count of running containers",
+		}),
 		runs: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name:      "containers_runs_total",
 			Namespace: namespace,
@@ -26,13 +33,19 @@ func NewContainers(namespace string) *Containers {
 }
 
 func (c *Containers) Describe(ch chan<- *prometheus.Desc) {
+	c.running.Describe(ch)
 	c.runs.Describe(ch)
 	c.stops.Describe(ch)
 }
 
 func (c *Containers) Collect(ch chan<- prometheus.Metric) {
+	c.running.Collect(ch)
 	c.runs.Collect(ch)
 	c.stops.Collect(ch)
+}
+
+func (c *Containers) BindRunningCallback(callback func() float64) {
+	c.running.Bind(callback)
 }
 
 func (c *Containers) IncRun(host string, state bool) {
