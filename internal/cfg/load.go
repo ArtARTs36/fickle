@@ -9,7 +9,9 @@ import (
 )
 
 const (
-	defaultIdleTimeout = 1 * time.Minute
+	defaultIdleTimeout           = 1 * time.Minute
+	defaultRetryRequestsAttempts = 3
+	defaultRetryBackoff          = 100 * time.Millisecond
 )
 
 func Load(path string) (*Config, error) {
@@ -32,8 +34,16 @@ func Load(path string) (*Config, error) {
 			cfg.Proxy[host] = proxy
 		}
 
-		if proxy.IdleTimeout == 0 {
+		if proxy.IdleTimeout <= 0 {
 			proxy.IdleTimeout = defaultIdleTimeout
+		}
+
+		if proxy.Forward.RetryPolicy.Attempts <= 0 {
+			proxy.Forward.RetryPolicy.Attempts = defaultRetryRequestsAttempts
+		}
+
+		if proxy.Forward.RetryPolicy.Backoff <= 0 {
+			proxy.Forward.RetryPolicy.Backoff = defaultRetryBackoff
 		}
 	}
 

@@ -1,6 +1,12 @@
+# Configuration for logs
+#
+# Optional, default: info. Available values: debug, info, warn, error
 log:
   level: debug
 
+# Configuration for control server, which contains metrics
+#
+# Optional.
 control:
   address: :8001
 
@@ -21,10 +27,19 @@ proxy:
     #
     # Required.
     forward:
+      # The address to which requests will be forwarded.
+      #
+      # Required.
       address: helloworld:8000
+      # Policy for retry requests.
+      #
+      # Optional.
       retry_policy:
+        # Attempts for request.
+        #
+        # Optional, default: 100ms
         attempts: 3
-        backoff: 1s
+        backoff: 500ms
     metrics:
       scrape:
         address: helloworld:8000/metrics
