@@ -5,6 +5,11 @@ import (
 	"gopkg.in/yaml.v3"
 	"os"
 	"strings"
+	"time"
+)
+
+const (
+	defaultIdleTimeout = 1 * time.Minute
 )
 
 func Load(path string) (*Config, error) {
@@ -25,6 +30,10 @@ func Load(path string) (*Config, error) {
 			proxy.Host = host
 			proxy.Metrics.Scrape.Address = "http://" + proxy.Metrics.Scrape.Address
 			cfg.Proxy[host] = proxy
+		}
+
+		if proxy.IdleTimeout == 0 {
+			proxy.IdleTimeout = defaultIdleTimeout
 		}
 	}
 

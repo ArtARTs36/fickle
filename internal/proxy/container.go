@@ -47,7 +47,7 @@ func NewContainerProxy(
 	p := &ContainerProxy{
 		target: &url.URL{
 			Scheme: "http",
-			Host:   config.To.Address,
+			Host:   config.Forward.Address,
 		},
 		config:          config,
 		dockerClient:    dockerClient,
@@ -56,7 +56,7 @@ func NewContainerProxy(
 	}
 
 	p.proxy = httputil.NewSingleHostReverseProxy(p.target)
-	p.proxy.Transport = transport.Retryable(config.RetryPolicy, http.DefaultTransport)
+	p.proxy.Transport = transport.Retryable(config.Forward.RetryPolicy, http.DefaultTransport)
 
 	go func() {
 		p.recycle()
@@ -84,7 +84,7 @@ func (p *ContainerProxy) HandleRequest(w http.ResponseWriter, req *http.Request)
 				req.Context(),
 				"[container-proxy] failed to start container",
 				slog.Any("err", err),
-				slog.String("service", p.config.To.ServiceName),
+				slog.String("service", p.config.ServiceName),
 			)
 			p.error(w)
 			return
@@ -122,7 +122,7 @@ func (p *ContainerProxy) findContainer(ctx context.Context) (*container.Summary,
 		All: true,
 		Filters: filters.NewArgs(filters.KeyValuePair{
 			Key:   "label",
-			Value: fmt.Sprintf("fickle.service.name=%s", p.config.To.ServiceName),
+			Value: fmt.Sprintf("fickle.service.name=%s", p.config.ServiceName),
 		}),
 	}
 

@@ -5,14 +5,26 @@ control:
   address: :8001
 
 proxy:
+  # key - the address at which incoming requests are processed.
+  #
+  # Required.
   helloworld.dc:
+    # Name of service from label `fickle.service.name`
+    #
+    # Required.
+    service_name: helloworld
+    # The time during which the container will live after the last request
+    #
+    # Optional. Default: 1m
     idle_timeout: 10s
-    retry_policy:
-      attempts: 3
-      backoff: 1s
-    to:
-      service_name: helloworld
+    # Configuration for forwarding http requests.
+    #
+    # Required.
+    forward:
       address: helloworld:8000
+      retry_policy:
+        attempts: 3
+        backoff: 1s
     metrics:
       scrape:
         address: helloworld:8000/metrics

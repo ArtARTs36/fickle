@@ -1,11 +1,10 @@
 package cfg
 
 import (
+	"github.com/artarts36/fickle/internal/transport"
 	"time"
 
 	"github.com/artarts36/specw"
-
-	"github.com/artarts36/fickle/internal/transport"
 )
 
 type Config struct {
@@ -19,13 +18,14 @@ type Config struct {
 }
 
 type Proxy struct {
-	Host        string                `yaml:"-"`
-	RetryPolicy transport.RetryPolicy `yaml:"retry_policy"`
-	To          struct {
-		NetworkName string `yaml:"network_name"`
-		ServiceName string `yaml:"service_name"`
-		Address     string `yaml:"address"`
-	} `yaml:"to"`
+	Host        string `yaml:"-"`
+	ServiceName string `yaml:"service_name"`
+
+	Forward struct {
+		Address     string                `yaml:"address"`
+		RetryPolicy transport.RetryPolicy `yaml:"retry_policy"`
+	} `yaml:"forward"`
+
 	IdleTimeout time.Duration `yaml:"idle_timeout"`
 	Metrics     struct {
 		Scrape struct {
