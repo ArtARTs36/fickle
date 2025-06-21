@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"github.com/artarts36/fickle/internal/cfg"
 	"github.com/artarts36/fickle/internal/control"
+	"github.com/artarts36/fickle/internal/metrics"
 	"github.com/artarts36/fickle/internal/metricsscrapper"
 	"github.com/artarts36/fickle/internal/proxy"
 	"github.com/docker/docker/client"
+	"github.com/prometheus/client_golang/prometheus"
 	"log/slog"
 	"os"
 )
@@ -38,6 +40,9 @@ func run(ctx context.Context) error {
 		Level: config.Log.Level.Value,
 	})))
 
+	metricsGroup := metrics.NewGroup("fickle")
+	prometheus.MustRegister(metricsGroup)
+
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return fmt.Errorf("create docker client: %w", err)
@@ -46,7 +51,7 @@ func run(ctx context.Context) error {
 	metricsStore := metricsscrapper.NewStore()
 	metricsScrapper := metricsscrapper.NewScrapper(metricsStore)
 
-	prox := proxy.NewServer(config, dockerClient, metricsScrapper)
+	prox := proxy.NewServer(config, dockerClient, metricsScrapper, metricsGroup)
 
 	go func() {
 		if config.Control.Address == "" {

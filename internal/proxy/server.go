@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"github.com/artarts36/fickle/internal/metrics"
 	"github.com/artarts36/fickle/internal/metricsscrapper"
 	"log/slog"
 	"net/http"
@@ -17,13 +18,14 @@ func NewServer(
 	config *cfg.Config,
 	dockerClient *client.Client,
 	metricsScrapper *metricsscrapper.Scrapper,
+	metricsGroup *metrics.Group,
 ) *Server {
 	s := &Server{
 		containers: map[string]*ContainerProxy{},
 	}
 
 	for _, c := range config.Proxy {
-		s.containers[c.Host] = NewContainerProxy(c, dockerClient, metricsScrapper)
+		s.containers[c.Host] = NewContainerProxy(c, dockerClient, metricsScrapper, metricsGroup)
 	}
 
 	return s

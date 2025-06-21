@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/artarts36/fickle/internal/metrics"
 	"github.com/docker/docker/api/types/filters"
 
 	"github.com/artarts36/fickle/internal/metricsscrapper"
@@ -34,12 +35,14 @@ type ContainerProxy struct {
 	lastRequestStarted     time.Time
 
 	metricsScrapper *metricsscrapper.Scrapper
+	metricsGroup    *metrics.Group
 }
 
 func NewContainerProxy(
 	config cfg.Proxy,
 	dockerClient *client.Client,
 	metricsScrapper *metricsscrapper.Scrapper,
+	metricsGroup *metrics.Group,
 ) *ContainerProxy {
 	p := &ContainerProxy{
 		target: &url.URL{
@@ -49,6 +52,7 @@ func NewContainerProxy(
 		config:          config,
 		dockerClient:    dockerClient,
 		metricsScrapper: metricsScrapper,
+		metricsGroup:    metricsGroup,
 	}
 
 	p.proxy = httputil.NewSingleHostReverseProxy(p.target)
@@ -107,7 +111,10 @@ func (p *ContainerProxy) startContainer(ctx context.Context) error {
 
 	slog.InfoContext(ctx, "[container-proxy] running container", slog.String("container_id", cont.ID))
 
-	return p.dockerClient.ContainerStart(ctx, cont.ID, container.StartOptions{})
+	err = p.dockerClient.ContainerStart(ctx, cont.ID, container.StartOptions{})
+	p.metricsGroup.Containers.IncRun(p.config.Host, err == nil)
+
+	return err
 }
 
 func (p *ContainerProxy) findContainer(ctx context.Context) (*container.Summary, error) {
@@ -158,7 +165,10 @@ func (p *ContainerProxy) recycle() {
 			p.metricsScrapper.Scrape(p.config.Host, p.config.Metrics.Scrape.Address)
 		}
 
-		return p.dockerClient.ContainerStop(context.Background(), cont.ID, container.StopOptions{})
+		err = p.dockerClient.ContainerStop(context.Background(), cont.ID, container.StopOptions{})
+		p.metricsGroup.Containers.IncStops(p.config.Host, err == nil)
+
+		return err
 	}
 
 	for t := range tick.C {
