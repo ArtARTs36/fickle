@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"github.com/artarts36/fickle/internal/engine"
 	"github.com/artarts36/fickle/internal/metrics"
 	"github.com/artarts36/fickle/internal/metricsscrapper"
 	"log/slog"
@@ -24,8 +25,10 @@ func NewServer(
 		containers: map[string]*ContainerProxy{},
 	}
 
+	eng := engine.NewDockerEngine(dockerClient)
+
 	for _, c := range config.Proxy {
-		s.containers[c.Host] = NewContainerProxy(c, dockerClient, metricsScrapper, metricsGroup)
+		s.containers[c.Host] = NewContainerProxy(c, metricsScrapper, metricsGroup, eng)
 	}
 
 	metricsGroup.Containers.BindRunningCallback(func() float64 {

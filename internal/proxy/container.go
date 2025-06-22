@@ -2,15 +2,11 @@ package proxy
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/artarts36/fickle/internal/engine"
 	"github.com/artarts36/fickle/internal/metrics"
-	"github.com/docker/docker/api/types/filters"
-
 	"github.com/artarts36/fickle/internal/metricsscrapper"
 	"github.com/artarts36/fickle/internal/transport"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -22,8 +18,7 @@ import (
 )
 
 type ContainerProxy struct {
-	config       cfg.Proxy
-	dockerClient *client.Client
+	config cfg.Proxy
 
 	containerRanLock sync.RWMutex
 	containerRan     bool
@@ -36,13 +31,15 @@ type ContainerProxy struct {
 
 	metricsScrapper *metricsscrapper.Scrapper
 	metricsGroup    *metrics.Group
+
+	engine engine.Engine
 }
 
 func NewContainerProxy(
 	config cfg.Proxy,
-	dockerClient *client.Client,
 	metricsScrapper *metricsscrapper.Scrapper,
 	metricsGroup *metrics.Group,
+	eng engine.Engine,
 ) *ContainerProxy {
 	p := &ContainerProxy{
 		target: &url.URL{
@@ -50,9 +47,9 @@ func NewContainerProxy(
 			Host:   config.Forward.Address,
 		},
 		config:          config,
-		dockerClient:    dockerClient,
 		metricsScrapper: metricsScrapper,
 		metricsGroup:    metricsGroup,
+		engine:          eng,
 	}
 
 	p.proxy = httputil.NewSingleHostReverseProxy(p.target)
@@ -103,7 +100,7 @@ func (p *ContainerProxy) startContainer(ctx context.Context) error {
 		return fmt.Errorf("find: %w", err)
 	}
 
-	if cont.State == container.StateRunning || cont.State == container.StateRestarting {
+	if cont.Status == engine.ContainerStatusRunning || cont.Status == engine.ContainerStatusRestarting {
 		slog.InfoContext(ctx, "[container-proxy] container already running", slog.String("container_id", cont.ID))
 
 		return nil
@@ -111,31 +108,14 @@ func (p *ContainerProxy) startContainer(ctx context.Context) error {
 
 	slog.InfoContext(ctx, "[container-proxy] running container", slog.String("container_id", cont.ID))
 
-	err = p.dockerClient.ContainerStart(ctx, cont.ID, container.StartOptions{})
+	err = p.engine.Start(ctx, cont.ID)
 	p.metricsGroup.Containers.IncRun(p.config.Host, err == nil)
 
 	return err
 }
 
-func (p *ContainerProxy) findContainer(ctx context.Context) (*container.Summary, error) {
-	listOpts := container.ListOptions{
-		All: true,
-		Filters: filters.NewArgs(filters.KeyValuePair{
-			Key:   "label",
-			Value: fmt.Sprintf("fickle.service.name=%s", p.config.ServiceName),
-		}),
-	}
-
-	containers, err := p.dockerClient.ContainerList(ctx, listOpts)
-	if err != nil {
-		return nil, fmt.Errorf("list containers: %w", err)
-	}
-
-	for _, cont := range containers {
-		return &cont, nil
-	}
-
-	return nil, errors.New("container not found")
+func (p *ContainerProxy) findContainer(ctx context.Context) (*engine.Container, error) {
+	return p.engine.Find(ctx, p.config.ServiceName)
 }
 
 func (p *ContainerProxy) stopContainer(ctx context.Context) error {
@@ -150,7 +130,7 @@ func (p *ContainerProxy) stopContainer(ctx context.Context) error {
 		p.metricsScrapper.Scrape(p.config.Host, p.config.Metrics.Scrape.Address)
 	}
 
-	err = p.dockerClient.ContainerStop(ctx, cont.ID, container.StopOptions{})
+	err = p.engine.Stop(ctx, cont.ID)
 	p.metricsGroup.Containers.IncStops(p.config.Host, err == nil)
 
 	return nil

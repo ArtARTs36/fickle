@@ -4,7 +4,7 @@
 log:
   level: debug
 
-# Configuration for control server, which contains metrics
+# Configuration for control server, which contains metrics.
 #
 # Optional.
 control:
@@ -37,9 +37,17 @@ proxy:
       retry_policy:
         # Attempts for request.
         #
-        # Optional, default: 100ms
+        # Optional, default: 3
         attempts: 3
-        backoff: 500ms
+        # Backoff for requests.
+        #
+        # Optional, default: 100ms
+        backoff: 1s
+    # Configuration for service metrics
+    #
+    # Optional.
     metrics:
+      # Configuration for service metrics scrapping.
       scrape:
+        # Address for service metrics scrapping.
         address: helloworld:8000/metrics
